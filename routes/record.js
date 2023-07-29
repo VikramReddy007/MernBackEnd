@@ -24,92 +24,32 @@ recordRoutes.route("/menu/:collectionName").get(function (req, res) {
      if (err) throw err;
      res.json(result);
    });
-});
- 
-// This section will help you get a single record by id
-recordRoutes.route("/record/:id").get(function (req, res) {
- let db_connect = dbo.getDb();
- let myquery = { _id: ObjectId(req.params.id) };
- db_connect
-   .collection("records")
-   .findOne(myquery, function (err, result) {
-     if (err) throw err;
-     res.json(result);
-   });
-});
- 
-// This section will help you create a new record.
-recordRoutes.route("/record/add").post(function (req, response) {
- let db_connect = dbo.getDb();
- let myobj = {
-   name: req.body.name,
-   position: req.body.position,
-   level: req.body.level,
- };
- db_connect.collection("records").insertOne(myobj, function (err, res) {
-   if (err) throw err;
-   response.json(res);
- });
-});
- 
-// This section will help you update a record by id.
-recordRoutes.route("/update/:id").post(function (req, response) {
- let db_connect = dbo.getDb();
- let myquery = { _id: ObjectId(req.params.id) };
- let newvalues = {
-   $set: {
-     name: req.body.name,
-     position: req.body.position,
-     level: req.body.level,
-   },
- };
- db_connect
-   .collection("records")
-   .updateOne(myquery, newvalues, function (err, res) {
-     if (err) throw err;
-     console.log("1 document updated");
-     response.json(res);
-   });
-});
- 
-// This section will help you delete a record
-recordRoutes.route("/:id").delete((req, response) => {
- let db_connect = dbo.getDb();
- let myquery = { _id: ObjectId(req.params.id) };
- db_connect.collection("records").deleteOne(myquery, function (err, obj) {
-   if (err) throw err;
-   console.log("1 document deleted");
-   response.json(obj);
- });
-});
+}); 
 
-// // POST endpoint to update all price fields in the collection
-// recordRoutes.post('/updatePrices', (req, res) => {
-//   const collectionName = 'BiryaniAndRiceVegMenu';
-//   const updatedPrices = req.body;
-//   let db = dbo.getDb();
-//   const collection = db.collection(collectionName);
-
-//   console.log(updatedPrices);
-//   // Construct an array of update operations for each price field
-//   const updateOperations = updatedPrices.map((item) => ({
-//     updateOne: {
-//       filter: { 'listItems.id': item.Id },
-//       update: { $set: { 'listItems.$.price': item.Price } },
-//     },
-//   }));
-
-//   // Update all price fields in one request
-//   collection.bulkWrite(updateOperations, (err, result) => {
-//     if (err) {
-//       console.log('Error updating prices in the collection:', err);
-//       res.sendStatus(500);
-//       return;
-//     }
-//     console.log(result);
-//     res.sendStatus(200);
-//   });
-// });
+recordRoutes.route("/updateItemPrice/:collectionName").put(
+  async (req, res) => {
+    try {
+      const itemName = req.body.name;
+      const newPrice = req.body.newPrice; // Assuming the new price is sent in the request body
+      console.log(itemName+"-->"+newPrice);
+      // Find the document with the name 'Veg Spring Roll'
+      const filter = { 'listItems.name': itemName };
+      const update = { $set: { 'listItems.$.price': newPrice } };
+  
+      let db_connect = dbo.getDb();
+      const result = await db_connect.collection(req.params.collectionName).updateOne(filter, update);
+  
+      if (result.matchedCount > 0) {
+        res.status(200).json({ message: itemName+' price updated successfully!' });
+      } else {
+        res.status(404).json({ message: itemName+' not found in the database.' });
+      }
+    } catch (error) {
+      console.error('Error updating price:', error);
+      res.status(500).json({ message: 'Error updating price.' });
+    }
+  }
+)
 
 // Route for updating multiple price fields
 recordRoutes.route('/updatePrices')
