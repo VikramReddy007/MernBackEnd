@@ -51,6 +51,37 @@ recordRoutes.route("/updateItemPrice/:collectionName").put(
   }
 )
 
+recordRoutes.route("/getPassword").get(function (req, res) {
+  let db_connect = dbo.getDb("restaurant-menu");
+  db_connect
+ //  .collection("records")
+    .collection("MenuUpdatePassword")
+   //  "BiryaniAndRiceVegMenu"
+    .find({})
+    .toArray(function (err, result) {
+      if (err) throw err;
+      res.json(result);
+    });
+  }
+)
+
+recordRoutes.route("/getPassword").post(function (req, res) {
+  let db_connect = dbo.getDb("restaurant-menu");
+  if(req.body.password === process.env.menuUpdatePassword){
+    db_connect
+    //  .collection("records")
+       .collection("MenuUpdatePassword")
+      //  "BiryaniAndRiceVegMenu"
+       .find({})
+       .toArray(function (err, result) {
+         if (err) throw err;
+         res.json(result);
+       });
+  }
+   else res.status(401).send('Invalid credentials!');
+  }
+)
+
 // Route for updating multiple price fields
 recordRoutes.route('/updatePrices')
 .post((req, res) => {
