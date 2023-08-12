@@ -1,91 +1,116 @@
 const express = require("express");
- 
+
 // recordRoutes is an instance of the express router.
 // We use it to define our routes.
 // The router will be added as a middleware and will take control of requests starting with path /record.
 const recordRoutes = express.Router();
- 
+
 // This will help us connect to the database
 const dbo = require("../db/conn");
- 
+
 // This help convert the id from string to ObjectId for the _id.
 const ObjectId = require("mongodb").ObjectId;
- 
- 
+
 // This section will help you get a list of all the records.
 recordRoutes.route("/menu/:collectionName").get(function (req, res) {
- let db_connect = dbo.getDb("restaurant-menu");
- db_connect
-//  .collection("records")
-   .collection(req.params.collectionName)
-  //  "BiryaniAndRiceVegMenu"
-   .find({})
-   .toArray(function (err, result) {
-     if (err) throw err;
-     res.json(result);
-   });
-}); 
-
-recordRoutes.route("/updateItemPrice/:collectionName").put(
-  async (req, res) => {
-    try {
-      const itemName = req.body.name;
-      const newPrice = req.body.newPrice; // Assuming the new price is sent in the request body
-      console.log(itemName+"-->"+newPrice);
-      // Find the document with the name 'Veg Spring Roll'
-      const filter = { 'listItems.name': itemName };
-      const update = { $set: { 'listItems.$.price': newPrice } };
-  
-      let db_connect = dbo.getDb();
-      const result = await db_connect.collection(req.params.collectionName).updateOne(filter, update);
-  
-      if (result.matchedCount > 0) {
-        res.status(200).json({ message: itemName+' price updated successfully!' });
-      } else {
-        res.status(404).json({ message: itemName+' not found in the database.' });
-      }
-    } catch (error) {
-      console.error('Error updating price:', error);
-      res.status(500).json({ message: 'Error updating price.' });
-    }
-  }
-)
-
-recordRoutes.route("/getPassword").get(function (req, res) {
   let db_connect = dbo.getDb("restaurant-menu");
   db_connect
- //  .collection("records")
-    .collection("MenuUpdatePassword")
-   //  "BiryaniAndRiceVegMenu"
+    //  .collection("records")
+    .collection(req.params.collectionName)
+    //  "BiryaniAndRiceVegMenu"
     .find({})
     .toArray(function (err, result) {
       if (err) throw err;
       res.json(result);
     });
+});
+
+recordRoutes.route("/updateItemPrice/:collectionName").put(async (req, res) => {
+  try {
+    const itemName = req.body.name;
+    const newPrice = req.body.newPrice; // Assuming the new price is sent in the request body
+    // console.log(itemName + "-->" + newPrice);
+    // Find the document with the name 'Veg Spring Roll'
+    const filter = { "listItems.name": itemName };
+    const update = { $set: { "listItems.$.price": newPrice } };
+
+    let db_connect = dbo.getDb();
+    const result = await db_connect
+      .collection(req.params.collectionName)
+      .updateOne(filter, update);
+
+    if (result.matchedCount > 0) {
+      res
+        .status(200)
+        .json({ message: itemName + " price updated successfully!" });
+    } else {
+      res
+        .status(404)
+        .json({ message: itemName + " not found in the database." });
+    }
+  } catch (error) {
+    console.error("Error updating price:", error);
+    res.status(500).json({ message: "Error updating price." });
   }
-)
+});
+
+recordRoutes.route("/getItemPrice/:collectionName").post(function (req, res) {
+  const itemName = req.body.name;
+  // console.log("Item name : ==>" + itemName);
+  let db_connect = dbo.getDb("restaurant-menu");
+  db_connect
+    .collection(req.params.collectionName)
+    .findOne(
+      { "listItems.name": itemName },
+      { "listItems.$": 1 },
+      function (err, result) {
+        if (err) throw err;
+        res.json(result.listItems[0].price);
+      }
+    );
+});
 
 recordRoutes.route("/getPassword").post(function (req, res) {
   let db_connect = dbo.getDb("restaurant-menu");
-  if(req.body.password === process.env.menuUpdatePassword){
+  if (req.body.password === process.env.menuUpdatePassword) {
     db_connect
-    //  .collection("records")
-       .collection("MenuUpdatePassword")
+      //  .collection("records")
+      .collection("MenuUpdatePassword")
       //  "BiryaniAndRiceVegMenu"
-       .find({})
-       .toArray(function (err, result) {
-         if (err) throw err;
-         res.json(result);
-       });
+      .find({})
+      .toArray(function (err, result) {
+        if (err) throw err;
+        res.json(result);
+      });
+  } else res.status(401).send("Invalid credentials!");
+});
+
+recordRoutes.route("/updatePriceLog").post(async (req, res) => {
+  let currentTime = new Date(Date.now());
+  try {
+    let document = {
+      "Item Name":  req.body.name,
+      "Old Price": req.body.oldPrice,
+      "New Price": req.body.newPrice,
+      "Category" : req.body.collection,
+      "Date&Time" : currentTime.toLocaleDateString()+" "+currentTime.toLocaleTimeString()
+    };
+
+    let db_connect = dbo.getDb();
+    const result = await db_connect
+      .collection("MenuUpdateLogs")
+      .insertOne(document);
+    // console.log(result);
+    res.status(200).json(document);
+  } catch (error) {
+    console.error("Error updating logs:", error);
+    res.status(500).json({ message: "Error updating logs, please try later." });
   }
-   else res.status(401).send('Invalid credentials!');
-  }
-)
+});
 
 // Route for updating multiple price fields
-recordRoutes.route('/updatePrices')
-.post((req, res) => {
-  const collectionName = 'BiryaniAndRiceVegMenu';
+recordRoutes.route("/updatePrices").post((req, res) => {
+  const collectionName = "BiryaniAndRiceVegMenu";
   const updatedPrices = req.body;
   let db = dbo.getDb();
   const collection = db.collection(collectionName);
@@ -93,21 +118,21 @@ recordRoutes.route('/updatePrices')
   // Construct an array of update operations for each price field
   const updateOperations = updatedPrices.map((item) => ({
     updateOne: {
-      filter: { 'listItems.id': item.itemId },
-      update: { $set: { 'listItems.$.price': item.newPrice } },
+      filter: { "listItems.id": item.itemId },
+      update: { $set: { "listItems.$.price": item.newPrice } },
     },
   }));
 
   // Update all price fields in one request
   collection.bulkWrite(updateOperations, (err, result) => {
     if (err) {
-      console.log('Error updating prices in the collection:', err);
+      // console.log("Error updating prices in the collection:", err);
       res.sendStatus(500);
       return;
     }
-    console.log(result);
+    // console.log(result);
     res.sendStatus(200);
   });
 });
- 
+
 module.exports = recordRoutes;
